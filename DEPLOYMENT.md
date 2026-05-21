@@ -16,37 +16,48 @@ Instrucciones detalladas para desplegar la aplicación en producción.
 
 #### 1. Crear base de datos en Neon
 1. Ve a [neon.tech](https://neon.tech)
-2. Crea una cuenta gratis
+2. Crea una cuenta gratis (con email o GitHub)
 3. Crea un nuevo proyecto PostgreSQL
-4. Copia la cadena de conexión (DATABASE_URL)
+4. Copia la cadena de conexión completa (algo como: `postgresql://user:password@ep-xxx.neon.tech/tecno_price?sslmode=require`)
 
-#### 2. Desplegar en Render
-1. Ve a [render.com](https://render.com)
-2. Crea una cuenta (conecta con GitHub)
-3. Click en "New" → "Blueprint"
-4. Selecciona tu repositorio de GitHub
-5. Render detectará automáticamente `render.yaml`
-6. En las variables de entorno, pega:
-   ```
-   DATABASE_URL=postgresql://user:password@ep-xxx.neon.tech/tecno_price?sslmode=require
-   ```
-7. Click en "Deploy Blueprint"
-
-#### 3. Configurar scraping automático
-El plan free de Render duerme tras 15 minutos sin actividad. Para scraping automático:
-
-1. Ve a tu repositorio en GitHub
-2. Settings → Secrets and variables → Actions
+#### 2. Preparar GitHub
+1. Sube tu repositorio a GitHub
+2. Ve a tu repositorio → Settings → Secrets and variables → Actions
 3. Crea un nuevo secret:
    ```
    Name: DATABASE_URL
    Value: postgresql://user:password@ep-xxx.neon.tech/tecno_price?sslmode=require
    ```
-4. GitHub Actions ejecutará automáticamente los scrapers cada 24h (ver `.github/workflows/scraper-diario.yml`)
+   (Reemplaza con tu cadena de conexión de Neon)
+
+#### 3. Desplegar en Render
+1. Ve a [render.com](https://render.com)
+2. Crea una cuenta (conecta con GitHub)
+3. Click en "New" → "Blueprint"
+4. Selecciona tu repositorio
+5. Render detectará automáticamente `render.yaml`
+6. En "Environment Variables", agrega:
+   ```
+   DATABASE_URL = postgresql://user:password@ep-xxx.neon.tech/tecno_price?sslmode=require
+   ```
+7. Click en "Deploy Blueprint"
+8. Espera a que termine (5-10 minutos)
 
 #### 4. Verificar despliegue
 - Abre `https://tu-app.onrender.com`
-- Verifica que la API responda: `https://tu-app.onrender.com/api/health`
+- Verifica que funciona: `https://tu-app.onrender.com/api/health`
+- Deberías ver: `{"status": "ok", "umbral_frescura_horas": 12}`
+
+#### 5. Configurar scraping automático
+El plan free de Render duerme tras 15 minutos sin actividad. Para scraping automático cada 24h:
+
+GitHub Actions ejecutará automáticamente los scrapers (ver `.github/workflows/scraper-diario.yml`). 
+Ya está configurado, solo necesita que `DATABASE_URL` esté en los secrets de GitHub.
+
+**Verificar que funciona:**
+1. Ve a tu repositorio en GitHub
+2. Actions → "Scraping Automático Diario"
+3. Debería ejecutarse automáticamente cada día a las 8:00 UTC (3:00 AM Colombia)
 
 ---
 
