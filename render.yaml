@@ -24,7 +24,7 @@ services:
     buildCommand: |
       pip install --upgrade pip && \
       pip install -r requirements.txt && \
-      python -m playwright install --with-deps
+      python -m playwright install chromium
     
     startCommand: python start.py --host 0.0.0.0 --port $PORT
     
@@ -35,3 +35,5 @@ services:
         value: "true"
       - key: DATABASE_URL
         sync: false
+      - key: PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD
+        value: "1"

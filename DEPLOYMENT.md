@@ -41,7 +41,10 @@ Instrucciones detalladas para desplegar la aplicación en producción.
    DATABASE_URL = postgresql://user:password@ep-xxx.neon.tech/tecno_price?sslmode=require
    ```
 7. Click en "Deploy Blueprint"
-8. Espera a que termine (5-10 minutos)
+8. Espera a que termine (10-15 minutos)
+   - Primero instala dependencias Python
+   - Luego descarga Chromium (puede tardar)
+   - Finalmente inicia la API
 
 #### 4. Verificar despliegue
 - Abre `https://tu-app.onrender.com`
