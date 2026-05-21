@@ -22,6 +22,7 @@ services:
     region: oregon
     
     buildCommand: |
+      export PLAYWRIGHT_BROWSERS_PATH=0 && \
       pip install --upgrade pip && \
       pip install -r requirements.txt && \
       python -m playwright install chromium
@@ -35,3 +36,5 @@ services:
         value: "true"
       - key: DATABASE_URL
         sync: false
+      - key: PLAYWRIGHT_BROWSERS_PATH
+        value: "0"
