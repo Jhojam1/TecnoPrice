@@ -1,0 +1,37 @@
+# Render Blueprint para TecnoPrice CO
+# ====================================
+# Despliega la API + frontend en un solo servicio web.
+# La BD usa Neon (PostgreSQL gratis) configurada por DATABASE_URL.
+#
+# 📋 Pasos para desplegar:
+#   1. Sube el repositorio a GitHub
+#   2. Ve a https://dashboard.render.com -> "New" -> "Blueprint"
+#   3. Conecta tu repositorio GitHub
+#   4. Render detectará automáticamente este archivo
+#   5. Configura la variable DATABASE_URL (desde Neon)
+#   6. Click en "Deploy Blueprint"
+#
+# ⏱️ Nota: El plan free de Render duerme después de 15 minutos sin actividad.
+# Para scraping automático, usa GitHub Actions (ver .github/workflows/scraper-diario.yml)
+
+services:
+  - type: web
+    name: tecnoprice-co
+    runtime: python
+    plan: free
+    region: oregon
+    
+    buildCommand: |
+      pip install --upgrade pip && \
+      pip install -r requirements.txt && \
+      python -m playwright install chromium --with-deps
+    
+    startCommand: python start.py --host 0.0.0.0 --port $PORT
+    
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12"
+      - key: SCRAPER_HEADLESS
+        value: "true"
+      - key: DATABASE_URL
+        sync: false

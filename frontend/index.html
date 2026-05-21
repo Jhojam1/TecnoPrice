@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TecnoPrice CO</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  html { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+  body { background: #fafafa; color: #0a0a0a; }
+  .clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  /* Scrollbar minimal */
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #d4d4d4; border-radius: 10px; }
+  ::-webkit-scrollbar-thumb:hover { background: #a3a3a3; }
+  /* Inputs */
+  .input { transition: border-color .15s, box-shadow .15s; }
+  .input:focus { outline: none; border-color: #0a0a0a; box-shadow: 0 0 0 3px rgba(10,10,10,.06); }
+  /* Cards hover */
+  .card { transition: border-color .15s; }
+  .card:hover { border-color: #a3a3a3; }
+</style>
+</head>
+<body class="text-neutral-900">
+
+  <!-- Header -->
+  <header class="border-b border-neutral-200 bg-white">
+    <div class="max-w-6xl mx-auto px-6 py-5 flex items-center justify-between">
+      <div>
+        <div class="text-lg font-semibold tracking-tight">TecnoPrice<span class="text-neutral-400">.co</span></div>
+        <div class="text-xs text-neutral-500 mt-0.5">Comparador de componentes</div>
+      </div>
+      <div class="text-right text-xs text-neutral-500">
+        <span id="ultima-fecha">—</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Stats discretas -->
+  <section class="border-b border-neutral-200 bg-white">
+    <div class="max-w-6xl mx-auto px-6 py-4 flex flex-wrap gap-x-10 gap-y-2 text-sm">
+      <div><span class="text-neutral-500">Productos</span> <span id="stat-total" class="font-semibold text-neutral-900 ml-1">—</span></div>
+      <div><span class="text-neutral-500">Tiendas</span> <span id="stat-tiendas" class="font-semibold text-neutral-900 ml-1">—</span></div>
+      <div><span class="text-neutral-500">Categorías</span> <span id="stat-categorias" class="font-semibold text-neutral-900 ml-1">—</span></div>
+      <div class="ml-auto" id="stat-precio-wrap" hidden>
+        <span class="text-neutral-500">Promedio</span> <span id="stat-precio" class="font-semibold text-neutral-900 ml-1">—</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Toggle minimalista -->
+  <section class="max-w-6xl mx-auto px-6 pt-8">
+    <div class="flex items-center gap-1 text-sm border-b border-neutral-200">
+      <button id="btn-comparar" onclick="cambiarVista('comparar')"
+              class="px-4 py-2.5 -mb-px border-b-2 border-neutral-900 text-neutral-900 font-medium">
+        Comparar
+      </button>
+      <button id="btn-individual" onclick="cambiarVista('individual')"
+              class="px-4 py-2.5 -mb-px border-b-2 border-transparent text-neutral-500 hover:text-neutral-900 transition">
+        Todos los productos
+      </button>
+    </div>
+  </section>
+
+  <!-- Filtros -->
+  <section class="max-w-6xl mx-auto px-6 mt-6">
+    <div class="grid grid-cols-1 md:grid-cols-12 gap-3">
+      <div class="md:col-span-6">
+        <input id="f-busqueda" type="text" placeholder="Buscar producto…"
+               class="input w-full rounded-md border border-neutral-300 px-3.5 py-2.5 text-sm bg-white"/>
+      </div>
+      <div class="md:col-span-3">
+        <select id="f-categoria" class="input w-full rounded-md border border-neutral-300 px-3 py-2.5 text-sm bg-white">
+          <option value="">Todas las categorías</option>
+        </select>
+      </div>
+      <div class="md:col-span-3" id="contenedor-tienda" hidden>
+        <select id="f-tienda" class="input w-full rounded-md border border-neutral-300 px-3 py-2.5 text-sm bg-white">
+          <option value="">Todas las tiendas</option>
+        </select>
+      </div>
+      <div class="md:col-span-3">
+        <select id="f-orden" class="input w-full rounded-md border border-neutral-300 px-3 py-2.5 text-sm bg-white"></select>
+      </div>
+    </div>
+
+    <div id="filtro-comparar-extra" class="mt-3 flex items-center gap-2 text-sm text-neutral-600">
+      <input type="checkbox" id="f-solo-multi" checked class="w-4 h-4 rounded border-neutral-400 accent-neutral-900"/>
+      <label for="f-solo-multi" class="select-none cursor-pointer">
+        Solo productos disponibles en 2 o más tiendas
+      </label>
+    </div>
+  </section>
+
+  <!-- Resultados -->
+  <main class="max-w-6xl mx-auto px-6 py-8">
+    <div class="flex items-baseline justify-between mb-5">
+      <div id="contador" class="text-sm text-neutral-500"></div>
+    </div>
+
+    <div id="grid"></div>
+
+    <div id="vacio" class="hidden text-center py-20 text-neutral-400 text-sm">
+      No hay resultados con esos filtros.
+    </div>
+
+    <div id="paginacion" class="flex items-center justify-center gap-1 mt-10"></div>
+  </main>
+
+  <!-- Modal de detalle -->
+  <div id="modal" class="fixed inset-0 bg-black/40 hidden items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto border border-neutral-200">
+      <div class="p-7">
+        <div class="flex items-start justify-between mb-5 gap-4">
+          <h3 id="modal-titulo" class="text-base font-semibold text-neutral-900 flex-1"></h3>
+          <button onclick="cerrarModal()" class="text-neutral-400 hover:text-neutral-900 text-2xl leading-none -mt-1">&times;</button>
+        </div>
+        <div id="modal-contenido"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="border-t border-neutral-200 mt-10 bg-white">
+    <div class="max-w-6xl mx-auto px-6 py-5 text-xs text-neutral-500">
+      Proyecto académico · Datos de catálogos públicos
+    </div>
+  </footer>
+
+<script>
+const API_BASE = "";
+const fmtCOP = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
+
+let stats = {};
+let paginaActual = 1;
+const porPagina = 24;
+let temporizadorBusqueda = null;
+let vistaActual = 'comparar';
+let gruposActuales = [];   // cache del último listado de grupos para abrir su modal
+
+const OPCIONES_ORDEN = {
+  comparar: [
+    { v: 'ahorro',      t: 'Mayor ahorro' },
+    { v: 'precio_asc',  t: 'Precio: menor a mayor' },
+    { v: 'precio_desc', t: 'Precio: mayor a menor' },
+    { v: 'tiendas',     t: 'Más tiendas' },
+  ],
+  individual: [
+    { v: 'precio_asc',  t: 'Precio: menor a mayor' },
+    { v: 'precio_desc', t: 'Precio: mayor a menor' },
+    { v: 'nombre',      t: 'Nombre' },
+  ],
+};
+
+function pintarOpcionesOrden() {
+  const sel = document.getElementById('f-orden');
+  sel.innerHTML = OPCIONES_ORDEN[vistaActual]
+    .map(o => `<option value="${o.v}">${o.t}</option>`).join('');
+}
+
+function cambiarVista(v) {
+  if (v === vistaActual) return;
+  vistaActual = v;
+  paginaActual = 1;
+
+  const btnC = document.getElementById('btn-comparar');
+  const btnI = document.getElementById('btn-individual');
+  const activo   = 'px-4 py-2.5 -mb-px border-b-2 border-neutral-900 text-neutral-900 font-medium';
+  const inactivo = 'px-4 py-2.5 -mb-px border-b-2 border-transparent text-neutral-500 hover:text-neutral-900 transition';
+  btnC.className = (v === 'comparar')   ? activo : inactivo;
+  btnI.className = (v === 'individual') ? activo : inactivo;
+
+  document.getElementById('filtro-comparar-extra').hidden = (v !== 'comparar');
+  document.getElementById('contenedor-tienda').hidden = (v === 'comparar');
+
+  pintarOpcionesOrden();
+  cargarLista();
+}
+
+async function cargarStats() {
+  const res = await fetch(`${API_BASE}/api/stats`);
+  stats = await res.json();
+
+  document.getElementById('stat-total').textContent      = stats.total_productos ?? 0;
+  document.getElementById('stat-tiendas').textContent    = stats.tiendas ?? 0;
+  document.getElementById('stat-categorias').textContent = stats.categorias ?? 0;
+
+  if (stats.ultima_actualizacion) {
+    const el = document.getElementById('ultima-fecha');
+    el.textContent = 'Actualizado ' + tiempoRelativo(stats.ultima_actualizacion);
+    el.title = new Date(stats.ultima_actualizacion).toLocaleString('es-CO');
+  }
+
+  const selCat = document.getElementById('f-categoria');
+  selCat.innerHTML = `<option value="">Todas las categorías</option>`;
+  Object.keys(stats.por_categoria || {}).sort().forEach(c => {
+    selCat.insertAdjacentHTML('beforeend', `<option>${c}</option>`);
+  });
+
+  const selTie = document.getElementById('f-tienda');
+  selTie.innerHTML = `<option value="">Todas las tiendas</option>`;
+  Object.keys(stats.por_tienda || {}).sort().forEach(t => {
+    selTie.insertAdjacentHTML('beforeend', `<option>${t}</option>`);
+  });
+
+  actualizarPrecioPromedio();
+}
+
+function actualizarPrecioPromedio() {
+  const cat = document.getElementById('f-categoria').value;
+  const datos = stats.precios_por_categoria || {};
+  const wrap = document.getElementById('stat-precio-wrap');
+
+  if (cat && datos[cat]) {
+    document.getElementById('stat-precio').textContent = fmtCOP.format(datos[cat].promedio);
+    wrap.hidden = false;
+  } else {
+    wrap.hidden = true;
+  }
+}
+
+async function cargarLista() {
+  return vistaActual === 'comparar' ? cargarGrupos() : cargarProductos();
+}
+
+async function cargarProductos() {
+  const q     = document.getElementById('f-busqueda').value.trim();
+  const cat   = document.getElementById('f-categoria').value;
+  const tie   = document.getElementById('f-tienda').value;
+  const orden = document.getElementById('f-orden').value;
+
+  const params = new URLSearchParams({ pagina: paginaActual, por_pagina: porPagina, orden });
+  if (q)   params.set('q', q);
+  if (cat) params.set('categoria', cat);
+  if (tie) params.set('tienda', tie);
+
+  document.getElementById('grid').innerHTML = `<div class="text-center text-neutral-400 py-16 text-sm">Cargando…</div>`;
+
+  const res = await fetch(`${API_BASE}/api/productos?${params}`);
+  const data = await res.json();
+
+  document.getElementById('contador').textContent =
+    `${data.total} productos · página ${data.pagina} de ${data.paginas || 1}`;
+  document.getElementById('vacio').classList.toggle('hidden', data.items.length > 0);
+
+  pintarGridIndividual(data.items);
+  pintarPaginacion(data.pagina, data.paginas);
+}
+
+async function cargarGrupos() {
+  const q          = document.getElementById('f-busqueda').value.trim();
+  const cat        = document.getElementById('f-categoria').value;
+  const orden      = document.getElementById('f-orden').value;
+  const soloMulti  = document.getElementById('f-solo-multi').checked;
+
+  const params = new URLSearchParams({
+    pagina: paginaActual, por_pagina: porPagina, orden,
+    solo_multi: soloMulti ? 'true' : 'false',
+  });
+  if (q)   params.set('q', q);
+  if (cat) params.set('categoria', cat);
+
+  document.getElementById('grid').innerHTML = `<div class="text-center text-neutral-400 py-16 text-sm">Cargando…</div>`;
+
+  const res = await fetch(`${API_BASE}/api/grupos?${params}`);
+  const data = await res.json();
+
+  document.getElementById('contador').textContent =
+    `${data.total} productos comparables · página ${data.pagina} de ${data.paginas || 1}`;
+  document.getElementById('vacio').classList.toggle('hidden', data.items.length > 0);
+
+  gruposActuales = data.items;
+  pintarGridGrupos(data.items);
+  pintarPaginacion(data.pagina, data.paginas);
+}
+
+// --------- Vista individual (lista vertical compacta) ---------
+
+function pintarGridIndividual(items) {
+  const grid = document.getElementById('grid');
+  if (!items.length) { grid.innerHTML = ''; return; }
+
+  grid.innerHTML = `
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-px bg-neutral-200 border border-neutral-200 rounded-lg overflow-hidden">
+      ${items.map(p => `
+        <article class="card bg-white p-5 flex gap-4 cursor-pointer" onclick="verDetalle(${p.id})">
+          <div class="w-20 h-20 flex-shrink-0 flex items-center justify-center bg-neutral-50 rounded">
+            ${p.imagen
+              ? `<img src="${p.imagen}" alt="" class="max-h-full max-w-full object-contain" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none'"/>`
+              : ''}
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="text-xs text-neutral-500 mb-1">${p.tienda} · ${p.categoria}</div>
+            <h3 class="text-sm text-neutral-900 clamp-2 mb-2">${escapeHtml(p.nombre || '')}</h3>
+            <div class="text-base font-semibold text-neutral-900">
+              ${p.precio_valor ? fmtCOP.format(p.precio_valor) : (p.precio || '—')}
+            </div>
+          </div>
+        </article>
+      `).join('')}
+    </div>
+  `;
+}
+
+// --------- Vista comparada (cards anchas con tabla de ofertas) ---------
+
+function pintarGridGrupos(items) {
+  const grid = document.getElementById('grid');
+  if (!items.length) { grid.innerHTML = ''; return; }
+
+  grid.innerHTML = `
+    <div class="space-y-3">
+      ${items.map((g, idx) => {
+        const minPV = g.precio_min;
+
+        const filas = g.ofertas.map(o => {
+          const esGanadora = (o.precio_valor != null && o.precio_valor === minPV);
+          return `
+            <a href="${o.enlace}" target="_blank" rel="noopener"
+               class="flex items-center justify-between gap-4 px-4 py-2.5 rounded-md transition
+                      ${esGanadora ? 'bg-neutral-900 text-white hover:bg-neutral-800'
+                                   : 'hover:bg-neutral-50 border border-transparent'}">
+              <div class="text-sm ${esGanadora ? 'text-white' : 'text-neutral-700'}">
+                ${o.tienda}
+              </div>
+              <div class="text-sm font-semibold tabular-nums whitespace-nowrap">
+                ${o.precio_valor ? fmtCOP.format(o.precio_valor) : (o.precio || '—')}
+              </div>
+            </a>
+          `;
+        }).join('');
+
+        const ahorroLinea = (g.ahorro_cop && g.ahorro_cop > 0)
+          ? `<div class="text-xs text-neutral-500 mt-2">
+               Ahorras hasta <span class="text-neutral-900 font-semibold">${fmtCOP.format(g.ahorro_cop)}</span>
+               (${g.ahorro_pct}%) eligiendo ${g.tienda_min}
+             </div>`
+          : '';
+
+        return `
+          <article class="card bg-white border border-neutral-200 rounded-lg overflow-hidden">
+            <div class="grid grid-cols-1 md:grid-cols-12">
+
+              <div onclick="verGrupo(${idx})"
+                   class="md:col-span-5 p-5 border-b md:border-b-0 md:border-r border-neutral-200 flex gap-4 cursor-pointer hover:bg-neutral-50 transition">
+                <div class="w-24 h-24 flex-shrink-0 flex items-center justify-center bg-neutral-50 rounded">
+                  ${g.imagen
+                    ? `<img src="${g.imagen}" alt="" class="max-h-full max-w-full object-contain" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none'"/>`
+                    : ''}
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div class="text-xs text-neutral-500 mb-1">${g.categoria} · ${g.n_tiendas} ${g.n_tiendas === 1 ? 'tienda' : 'tiendas'}</div>
+                  <h3 class="text-sm font-medium text-neutral-900 clamp-2 mb-2">${escapeHtml(g.nombre || '')}</h3>
+                  ${g.precio_min
+                    ? `<div class="text-lg font-semibold text-neutral-900 tabular-nums">${fmtCOP.format(g.precio_min)}</div>
+                       <div class="text-xs text-neutral-500">desde · ${g.tienda_min}</div>`
+                    : ''}
+                  ${ahorroLinea}
+                  <div class="text-xs text-neutral-400 mt-2">Ver detalles →</div>
+                </div>
+              </div>
+
+              <div class="md:col-span-7 p-4">
+                <div class="flex flex-col gap-1">
+                  ${filas}
+                </div>
+              </div>
+
+            </div>
+          </article>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
+// --------- Paginación ---------
+
+function pintarPaginacion(pagina, totalPaginas) {
+  const cont = document.getElementById('paginacion');
+  if (!totalPaginas || totalPaginas <= 1) { cont.innerHTML = ''; return; }
+
+  const btns = [];
+  const base = "min-w-[34px] h-9 px-2 rounded-md flex items-center justify-center text-sm transition";
+  const inact = `${base} text-neutral-700 hover:bg-neutral-100`;
+  const act   = `${base} bg-neutral-900 text-white`;
+  const dis   = `${base} text-neutral-300`;
+
+  btns.push(`<button class="${pagina<=1?dis:inact}" ${pagina<=1?'disabled':''} onclick="irPagina(${pagina-1})">‹</button>`);
+
+  const inicio = Math.max(1, pagina - 2);
+  const fin = Math.min(totalPaginas, pagina + 2);
+  if (inicio > 1) {
+    btns.push(`<button class="${inact}" onclick="irPagina(1)">1</button>`);
+    if (inicio > 2) btns.push(`<span class="text-neutral-400 px-1">…</span>`);
+  }
+  for (let i = inicio; i <= fin; i++) {
+    btns.push(`<button class="${i===pagina?act:inact}" onclick="irPagina(${i})">${i}</button>`);
+  }
+  if (fin < totalPaginas) {
+    if (fin < totalPaginas-1) btns.push(`<span class="text-neutral-400 px-1">…</span>`);
+    btns.push(`<button class="${inact}" onclick="irPagina(${totalPaginas})">${totalPaginas}</button>`);
+  }
+
+  btns.push(`<button class="${pagina>=totalPaginas?dis:inact}" ${pagina>=totalPaginas?'disabled':''} onclick="irPagina(${pagina+1})">›</button>`);
+  cont.innerHTML = btns.join('');
+}
+
+function irPagina(n) {
+  paginaActual = n;
+  cargarLista();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// Tiempo relativo en español: "hace 5 minutos", "hoy", "hace 2 días", etc.
+function tiempoRelativo(iso) {
+  const ahora = new Date();
+  const f = new Date(iso);
+  const seg = Math.floor((ahora - f) / 1000);
+  if (seg < 60)        return 'hace un momento';
+  if (seg < 3600)      return `hace ${Math.floor(seg/60)} min`;
+  if (seg < 7200)      return 'hace 1 hora';
+  if (seg < 86400)     return `hace ${Math.floor(seg/3600)} horas`;
+  if (seg < 172800)    return 'ayer';
+  if (seg < 604800)    return `hace ${Math.floor(seg/86400)} días`;
+  return f.toLocaleDateString('es-CO', { day: 'numeric', month: 'short' });
+}
+
+// --------- Detalle de un grupo (comparativa entre tiendas) ---------
+
+let pollingTimer = null;
+let pollingIntentos = 0;
+const POLLING_MAX_INTENTOS = 15;   // 15 x 4s = ~60s
+const POLLING_INTERVALO_MS = 4000;
+
+async function verGrupo(idx) {
+  const g = gruposActuales[idx];
+  if (!g) return;
+
+  const modal = document.getElementById('modal');
+  const titulo = document.getElementById('modal-titulo');
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+  titulo.textContent = g.nombre;
+
+  pintarModalGrupo(g);
+
+  // Refresca las ofertas. Dispara re-scrape en background si tienen >12h.
+  const grupoFresco = await refrescarOfertasGrupo(g);
+  pintarModalGrupo(grupoFresco);
+
+  // Si alguna oferta quedó en "actualizando", hacemos polling.
+  pollingIntentos = 0;
+  if (pollingTimer) clearInterval(pollingTimer);
+
+  if (grupoFresco.ofertas.some(o => o.actualizando)) {
+    pollingTimer = setInterval(async () => {
+      pollingIntentos++;
+      if (pollingIntentos > POLLING_MAX_INTENTOS) {
+        clearInterval(pollingTimer);
+        pollingTimer = null;
+        return;
+      }
+      const actualizado = await refrescarOfertasGrupo(grupoFresco);
+      pintarModalGrupo(actualizado);
+
+      // Si ya ninguna está en actualizando, detenemos el polling.
+      if (!actualizado.ofertas.some(o => o.actualizando)) {
+        clearInterval(pollingTimer);
+        pollingTimer = null;
+      }
+    }, POLLING_INTERVALO_MS);
+  }
+}
+
+async function refrescarOfertasGrupo(g) {
+  try {
+    const respuestas = await Promise.all(
+      g.ofertas.map(o => fetch(`${API_BASE}/api/producto/${o.id}`).then(r => r.json()))
+    );
+    return { ...g, ofertas: respuestas };
+  } catch {
+    return g;
+  }
+}
+
+function pintarModalGrupo(g) {
+  const cont = document.getElementById('modal-contenido');
+  const minPV = Math.min(...g.ofertas.filter(o => o.precio_valor != null).map(o => o.precio_valor));
+
+  cont.innerHTML = `
+    <div class="grid grid-cols-1 md:grid-cols-5 gap-6 mb-6">
+      <div class="md:col-span-2 bg-neutral-50 rounded flex items-center justify-center p-5 min-h-[180px]">
+        ${g.imagen
+          ? `<img src="${g.imagen}" class="max-h-44 object-contain" referrerpolicy="no-referrer" onerror="this.style.display='none'"/>`
+          : '<div class="text-neutral-300 text-sm">Sin imagen</div>'}
+      </div>
+      <div class="md:col-span-3">
+        <div class="text-xs text-neutral-500 mb-1">${g.categoria} · ${g.n_tiendas} ${g.n_tiendas === 1 ? 'tienda' : 'tiendas'}</div>
+        ${isFinite(minPV)
+          ? `<div class="text-2xl font-semibold text-neutral-900 tabular-nums">${fmtCOP.format(minPV)}</div>
+             <div class="text-xs text-neutral-500 mb-3">desde</div>`
+          : ''}
+        ${(g.ahorro_cop && g.ahorro_cop > 0) ? `
+          <div class="text-sm text-neutral-700">
+            Ahorras hasta <span class="font-semibold">${fmtCOP.format(g.ahorro_cop)}</span>
+            (${g.ahorro_pct}%) eligiendo <span class="font-semibold">${g.tienda_min}</span>
+          </div>` : ''}
+      </div>
+    </div>
+
+    <h4 class="text-sm font-semibold text-neutral-900 mb-2">Ofertas en cada tienda</h4>
+    <div class="border border-neutral-200 rounded-md overflow-hidden">
+      <table class="w-full text-sm">
+        <thead class="bg-neutral-50 text-neutral-500 text-xs uppercase tracking-wide">
+          <tr>
+            <th class="px-4 py-2 text-left font-medium">Tienda</th>
+            <th class="px-4 py-2 text-left font-medium">Producto</th>
+            <th class="px-4 py-2 text-right font-medium">Precio</th>
+            <th class="px-4 py-2 text-right font-medium">Actualizado</th>
+            <th class="px-4 py-2 text-right font-medium"></th>
+          </tr>
+        </thead>
+        <tbody>
+          ${g.ofertas.map(o => {
+            const esGanadora = (o.precio_valor != null && o.precio_valor === minPV);
+            return `
+              <tr class="border-t border-neutral-100 ${esGanadora ? 'bg-neutral-900 text-white' : ''}">
+                <td class="px-4 py-3 font-medium">${o.tienda}</td>
+                <td class="px-4 py-3 ${esGanadora ? 'text-neutral-300' : 'text-neutral-600'}">
+                  <div class="clamp-2 max-w-md">${escapeHtml(o.nombre || '')}</div>
+                </td>
+                <td class="px-4 py-3 text-right font-semibold tabular-nums whitespace-nowrap">
+                  ${o.precio_valor ? fmtCOP.format(o.precio_valor) : (o.precio || '—')}
+                </td>
+                <td class="px-4 py-3 text-right text-xs ${esGanadora ? 'text-neutral-300' : 'text-neutral-500'} whitespace-nowrap"
+                    title="${o.ultima_actualizacion ? new Date(o.ultima_actualizacion).toLocaleString('es-CO') : ''}">
+                  ${o.actualizando
+                    ? '<span class="italic">actualizando…</span>'
+                    : (o.ultima_actualizacion ? tiempoRelativo(o.ultima_actualizacion) : '—')}
+                </td>
+                <td class="px-4 py-3 text-right">
+                  <a href="${o.enlace}" target="_blank" rel="noopener"
+                     class="text-xs font-medium underline ${esGanadora ? 'text-white' : 'text-neutral-900'}">
+                    Ir →
+                  </a>
+                </td>
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+
+  `;
+}
+
+// --------- Detalle individual ---------
+
+async function verDetalle(id) {
+  const modal = document.getElementById('modal');
+  const titulo = document.getElementById('modal-titulo');
+  const cont = document.getElementById('modal-contenido');
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+  titulo.textContent = 'Cargando…';
+  cont.innerHTML = '<div class="text-neutral-400 text-center py-6 text-sm">Consultando…</div>';
+
+  try {
+    const [resD, resH] = await Promise.all([
+      fetch(`${API_BASE}/api/producto/${id}`),
+      fetch(`${API_BASE}/api/producto/${id}/historial`),
+    ]);
+    const p = await resD.json();
+    const h = await resH.json();
+
+    titulo.textContent = p.nombre;
+    const fechaFmt = p.ultima_actualizacion ? tiempoRelativo(p.ultima_actualizacion) : '—';
+    const fechaTitle = p.ultima_actualizacion ? new Date(p.ultima_actualizacion).toLocaleString('es-CO') : '';
+
+    cont.innerHTML = `
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="bg-neutral-50 rounded flex items-center justify-center p-6 min-h-[220px]">
+          ${p.imagen
+            ? `<img src="${p.imagen}" class="max-h-52 object-contain" referrerpolicy="no-referrer" onerror="this.style.display='none'"/>`
+            : '<div class="text-neutral-300 text-sm">Sin imagen</div>'}
+        </div>
+        <div>
+          <div class="text-xs text-neutral-500 mb-2">${p.tienda} · ${p.categoria}</div>
+          <div class="text-2xl font-semibold text-neutral-900 mb-2 tabular-nums">
+            ${p.precio_valor ? fmtCOP.format(p.precio_valor) : (p.precio || '—')}
+          </div>
+          <div class="text-xs text-neutral-500 mb-4" title="${fechaTitle}">Precio actualizado ${fechaFmt}</div>
+          <a href="${p.enlace}" target="_blank" rel="noopener"
+             class="inline-block bg-neutral-900 hover:bg-neutral-800 text-white text-sm font-medium px-4 py-2 rounded-md transition">
+            Ir a la tienda
+          </a>
+        </div>
+      </div>
+
+      <h4 class="text-sm font-semibold text-neutral-900 mt-7 mb-2">Historial de precios</h4>
+      ${h.items.length === 0
+        ? '<div class="text-neutral-400 text-sm">Sin historial registrado.</div>'
+        : `<div class="border border-neutral-200 rounded-md overflow-hidden">
+             <table class="w-full text-sm">
+               <thead class="bg-neutral-50 text-neutral-500 text-xs uppercase tracking-wide">
+                 <tr><th class="px-4 py-2 text-left font-medium">Fecha</th><th class="px-4 py-2 text-right font-medium">Precio</th></tr>
+               </thead>
+               <tbody>
+                 ${h.items.map(i => `
+                   <tr class="border-t border-neutral-100">
+                     <td class="px-4 py-2 text-neutral-600">${i.fecha ? new Date(i.fecha).toLocaleString('es-CO') : '—'}</td>
+                     <td class="px-4 py-2 text-right font-semibold tabular-nums">${i.precio_cop ? fmtCOP.format(i.precio_cop) : (i.precio_texto || '—')}</td>
+                   </tr>
+                 `).join('')}
+               </tbody>
+             </table>
+           </div>`}
+    `;
+  } catch (err) {
+    cont.innerHTML = `<div class="text-red-600 text-sm">Error: ${err}</div>`;
+  }
+}
+
+function cerrarModal() {
+  const modal = document.getElementById('modal');
+  modal.classList.add('hidden');
+  modal.classList.remove('flex');
+  if (pollingTimer) { clearInterval(pollingTimer); pollingTimer = null; }
+}
+
+document.getElementById('modal').addEventListener('click', (e) => {
+  if (e.target.id === 'modal') cerrarModal();
+});
+
+// --------- Listeners ---------
+
+document.getElementById('f-busqueda').addEventListener('input', () => {
+  clearTimeout(temporizadorBusqueda);
+  temporizadorBusqueda = setTimeout(() => { paginaActual = 1; cargarLista(); }, 300);
+});
+
+['f-categoria','f-tienda','f-orden','f-solo-multi'].forEach(id => {
+  document.getElementById(id).addEventListener('change', () => {
+    paginaActual = 1;
+    if (id === 'f-categoria') actualizarPrecioPromedio();
+    cargarLista();
+  });
+});
+
+// --------- Init ---------
+
+(async () => {
+  try {
+    pintarOpcionesOrden();
+    await cargarStats();
+    await cargarLista();
+  } catch (err) {
+    document.getElementById('grid').innerHTML =
+      `<div class="text-center text-red-600 py-10 text-sm">Error al conectar con la API: ${err}</div>`;
+  }
+})();
+</script>
+</body>
+</html>

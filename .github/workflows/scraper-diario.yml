@@ -1,0 +1,50 @@
+name: Scraping Automático Diario
+
+on:
+  schedule:
+    # Todos los días a las 08:00 UTC (03:00 hora Colombia)
+    - cron: "0 8 * * *"
+  workflow_dispatch:
+    # Permite ejecución manual desde la UI de GitHub
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          python -m playwright install chromium --with-deps
+
+      - name: Ejecutar scrapers
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SCRAPER_HEADLESS: "true"
+        run: |
+          echo "🚀 Iniciando scraping automático..."
+          python carga_inicial.py
+          echo "✅ Scraping completado exitosamente"
+
+      - name: Notificar en caso de error
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '❌ Error en el scraping automático. Revisa los logs.'
+            })

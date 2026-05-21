@@ -1,0 +1,13 @@
+playwright>=1.49
+
+# Base de datos
+sqlalchemy>=2.0
+psycopg2-binary>=2.9
+python-dotenv>=1.0
+
+# API
+fastapi>=0.110
+uvicorn[standard]>=0.29
+
+# Scheduler
+apscheduler>=3.10
