@@ -160,7 +160,7 @@ async def re_scrapear_producto(
 
     try:
         async with async_playwright() as pw:
-            navegador = await pw.chromium.launch(headless=True)
+            navegador = await pw.chromium.launch(headless=True, args=["--no-sandbox", "--disable-dev-shm-usage"])
             contexto = await navegador.new_context(
                 user_agent=USER_AGENT,
                 locale="es-CO",
@@ -169,45 +169,67 @@ async def re_scrapear_producto(
             page = await contexto.new_page()
 
             try:
-                await page.goto(url, timeout=timeout_ms, wait_until="domcontentloaded")
+                await page.goto(url, timeout=max(timeout_ms, 45000), wait_until="domcontentloaded")
+                if dominio == "tauretcomputadores.com":
+                    await page.wait_for_load_state("networkidle", timeout=20000)
             except Exception as e:
                 await navegador.close()
                 return {"error": f"No se pudo cargar la página: {e}"}
 
             # Espera para que JS se ejecute y la página cargue completamente
-            await asyncio.sleep(2.0)
+            try:
+                for sel in list(dict.fromkeys(selectores + SELECTORES_PRECIO_GENERICOS)):
+                    await page.wait_for_selector(sel, timeout=15000, state="attached")
+                    break
+            except Exception:
+                pass
 
             # Función JS reutilizable: para cada selector, recoge textos cuyo
-            # ancestro NO esté dentro de zonas excluidas.
-            precio_texto = await page.evaluate(
-                """
-                ({ selectores, excluir }) => {
-                    const dentroDeExcluido = (el) => {
-                        let cur = el;
-                        while (cur && cur !== document) {
-                            for (const sel of excluir) {
-                                if (cur.matches && cur.matches(sel)) return true;
+            # ancestro NO esté dentro de zonas excluidas. Reintenta una vez si
+            # el contexto de ejecución se destruye (típico en SPA durante navegación).
+            precio_texto = None
+            for _intento in range(2):
+                try:
+                    precio_texto = await page.evaluate(
+                        """
+                        ({ selectores, excluir }) => {
+                            const dentroDeExcluido = (el) => {
+                                let cur = el;
+                                while (cur && cur !== document) {
+                                    for (const sel of excluir) {
+                                        if (cur.matches && cur.matches(sel)) return true;
+                                    }
+                                    cur = cur.parentElement;
+                                }
+                                return false;
+                            };
+                            const RX = /(?:\\$|COP)\\s*[\\d]{1,3}(?:[\\.\\,]\\d{3})+/i;
+                            for (const sel of selectores) {
+                                const nodos = document.querySelectorAll(sel);
+                                for (const el of nodos) {
+                                    if (dentroDeExcluido(el)) continue;
+                                    const t = (el.innerText || '').trim();
+                                    if (t && RX.test(t)) {
+                                        return t.replace(/\\s+/g, ' ');
+                                    }
+                                }
                             }
-                            cur = cur.parentElement;
+                            return null;
                         }
-                        return false;
-                    };
-                    const RX = /(?:\\$|COP)\\s*[\\d]{1,3}(?:[\\.\\,]\\d{3})+/i;
-                    for (const sel of selectores) {
-                        const nodos = document.querySelectorAll(sel);
-                        for (const el of nodos) {
-                            if (dentroDeExcluido(el)) continue;
-                            const t = (el.innerText || '').trim();
-                            if (t && RX.test(t)) {
-                                return t.replace(/\\s+/g, ' ');
-                            }
-                        }
-                    }
-                    return null;
-                }
-                """,
-                {"selectores": selectores, "excluir": SELECTORES_EXCLUIR},
-            )
+                        """,
+                        {"selectores": selectores, "excluir": SELECTORES_EXCLUIR},
+                    )
+                    break
+                except Exception as _e:
+                    if "Execution context was destroyed" in str(_e):
+                        try:
+                            await page.wait_for_load_state("domcontentloaded")
+                        except Exception:
+                            pass
+                        await asyncio.sleep(1.5)
+                        continue
+                    else:
+                        break
 
             # Fallback genérico: solo si no encontramos nada con los selectores
             # específicos del dominio.
