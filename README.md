@@ -6,7 +6,6 @@ Plataforma completa de comparación de precios de componentes de computador en t
 - 🔄 Scraping automático de 4 tiendas (Speedlogic, Computer Working, Tauret, Clones y Periféricos)
 - 💾 Base de datos PostgreSQL con historial de precios
 - ⚡ API REST con caché de 12 horas y re-scraping en background
-- 🎨 Frontend interactivo con búsqueda, filtros y comparación
 - 📅 Scheduler automático de actualización cada 24 horas
 
 ---
@@ -53,45 +52,19 @@ playwright install
 Crea un archivo `.env` en la raíz:
 ```
 DATABASE_URL=postgresql://usuario:contraseña@host:5432/tecno_price
-SCRAPER_HEADLESS=true
 ```
 
 ---
 
 ## 🚀 Uso
 
-### Opción 1: Iniciar la aplicación completa (recomendado)
+### Iniciar la aplicación completa
 ```powershell
 python start.py
 ```
 Abre automáticamente `http://localhost:8000` en tu navegador.
 
-**Opciones:**
-```powershell
-python start.py --port 8080          # Puerto personalizado
-python start.py --no-browser         # Sin abrir navegador
-python start.py --reload             # Recarga automática (desarrollo)
-```
 
-### Opción 2: Ejecutar componentes por separado
-
-**Carga inicial de datos (primera vez):**
-```powershell
-python carga_inicial.py              # Todas las tiendas
-python carga_inicial.py --tienda speedlogic  # Solo una tienda
-```
-
-**Solo API:**
-```powershell
-python -m uvicorn api:app --reload --host 0.0.0.0 --port 8000
-```
-
-**Scheduler de actualización automática (24h):**
-```powershell
-python scheduler.py                  # Cada 24 horas
-python scheduler.py --horas 12       # Cada 12 horas
-python scheduler.py --ejecutar-ya    # Ejecutar ahora + cada 24h
-```
 
 ---
 
@@ -112,7 +85,7 @@ python scheduler.py --ejecutar-ya    # Ejecutar ahora + cada 24h
 │  • /api/historial      - Evolución de precios          │
 │  • /api/stats          - Estadísticas globales         │
 └────────────────────────┬────────────────────────────────┘
-                         │ SQLAlchemy ORM
+                         │ 
                          ▼
 ┌─────────────────────────────────────────────────────────┐
 │              PostgreSQL (Neon)                          │
@@ -120,7 +93,7 @@ python scheduler.py --ejecutar-ya    # Ejecutar ahora + cada 24h
 │  │ tiendas  │productos │historial_precios │            │
 │  └──────────┴──────────┴──────────────────┘            │
 └────────────────────────▲────────────────────────────────┘
-                         │ Upsert por URL
+                         │ 
                          │
 ┌────────────────────────┴────────────────────────────────┐
 │              Scrapers (Playwright)                      │
@@ -130,7 +103,7 @@ python scheduler.py --ejecutar-ya    # Ejecutar ahora + cada 24h
 │  • scraper_clonesyperifericos.py                       │
 └────────────────────────▲────────────────────────────────┘
                          │
-                         │ Dispara cada 24h
+                         │ 
                          │
 ┌────────────────────────┴────────────────────────────────┐
 │           Scheduler (APScheduler)                       │
@@ -145,21 +118,15 @@ El sistema implementa un caché inteligente para optimizar consultas:
 
 1. **Usuario solicita detalle de producto** → `/api/producto/{id}`
 2. **API verifica antigüedad del precio:**
-   - ✅ **< 12 horas**: Devuelve precio de BD (`fresco=true`)
+   - ✅ **< 12 horas**: Devuelve precio de BD
    - ⏳ **≥ 12 horas**: Marca como `actualizando=true` y dispara re-scrape en background
 3. **Re-scrape en background:**
    - Abre la página con Playwright
    - Extrae el precio actual usando selectores CSS específicos por tienda
    - Valida que no sea anómalo (entre 30% y 300% del anterior)
    - Actualiza BD e inserta en historial
-4. **Siguiente consulta**: Ya ve el precio fresco
+4. **Siguiente consulta**: Ya ve el precio actualizado
 
-**Ventajas:**
-- Respuesta inmediata al usuario (no espera el scraping)
-- Precios siempre frescos (máximo 12h de antigüedad)
-- Detecta cambios de precio automáticamente
-
----
 
 ## 📁 Estructura del proyecto
 
@@ -251,7 +218,6 @@ Agrupa el mismo producto entre varias tiendas, mostrando:
 | Variable | Requerida | Default | Descripción |
 |----------|-----------|---------|-------------|
 | `DATABASE_URL` | ✅ Sí | - | Cadena de conexión PostgreSQL (ej: `postgresql://user:pass@host/db`) |
-| `SCRAPER_HEADLESS` | ❌ No | `true` | Si `true`, los scrapers corren sin abrir ventana del navegador |
 
 **Ejemplo `.env`:**
 ```
@@ -267,14 +233,12 @@ SCRAPER_HEADLESS=true
 - **Playwright** para JavaScript rendering
 - Selectores CSS específicos por tienda
 - Validación de precios anómalos (detección de productos relacionados)
-- Manejo de SPAs (Vue.js, React)
-- User-Agent identificable como proyecto académico
 
 ### Base de datos
 - **PostgreSQL** con relaciones normalizadas
-- Historial de precios para análisis de tendencias
+- Historial de precios 
 - Índices en URLs para búsquedas rápidas
-- Timestamps automáticos (ISO-8601)
+- Timestamps automáticos
 
 ### API
 - **FastAPI** con validación Pydantic
@@ -310,85 +274,3 @@ SCRAPER_HEADLESS=true
   "actualizando": false
 }
 ```
-
----
-
-## 🤝 Políticas de cortesía
-
-El scraper respeta los sitios web:
-
-- ✅ Solo visita rutas públicas del catálogo
-- ✅ No accede a `/cart`, `/checkout`, `/login`, `/wp-admin`
-- ✅ User-Agent identificable como proyecto académico
-- ✅ Pausas de ~2.5 segundos entre peticiones
-- ✅ Detección automática de fin de paginación
-- ✅ Respeta `robots.txt` (cuando es posible)
-
----
-
-## 🚀 Despliegue en producción
-
-### Render.com (recomendado)
-```bash
-git push origin main
-# Render detecta automáticamente y despliega
-```
-
-Ver `render.yaml` para configuración.
-
-### Heroku
-```bash
-heroku create tu-app
-heroku addons:create heroku-postgresql:standard-0
-git push heroku main
-```
-
-### DigitalOcean / AWS
-1. Crear instancia Linux
-2. Instalar Python 3.10+, PostgreSQL
-3. Clonar repo y seguir pasos de instalación
-4. Usar systemd para ejecutar `start.py` como servicio
-
----
-
-## 📝 Licencia
-
-MIT License - Libre para uso académico y comercial.
-
----
-
-## 👨‍💻 Autor
-
-Proyecto académico de comparación de precios.
-
-**Contacto:** [tu-email@ejemplo.com]
-
----
-
-## 🐛 Troubleshooting
-
-### Error: "No se encontró precio con los selectores disponibles"
-El selector CSS para esa tienda/producto no funciona. Solución:
-1. Abre la página en el navegador
-2. Inspecciona el elemento del precio (F12)
-3. Copia el selector CSS
-4. Actualiza `SELECTORES_POR_DOMINIO` en `scrapers_base.py`
-
-### Error: "Executable doesn't exist" (Playwright)
-```powershell
-playwright install
-```
-
-### Error de conexión a BD
-Verifica que `DATABASE_URL` en `.env` sea correcta y que la BD esté accesible.
-
-### API lenta
-- Aumenta el pool de conexiones en `db.py`
-- Usa Redis para caché adicional
-- Optimiza índices en PostgreSQL
-
----
-
-## 📖 Documentación adicional
-
-- **DEPLOYMENT.md** - Guía completa para desplegar en producción
