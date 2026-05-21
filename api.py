@@ -106,11 +106,19 @@ async def tarea_rescrape(producto_id: int, url: str, precio_anterior: Optional[i
 
     with db.SessionLocal() as session:
         if "error" in resultado:
-            # Aun en error, desmarcar para permitir reintento luego
+            # Aun en error, desmarcar y aplicar cooldown de ~1h para evitar
+            # disparar re-scrapes constantes a un producto que falla
+            # (ej. agotado, sin precio visible, página caída).
             print(f"[BG] Error: {resultado['error']}")
             producto = session.get(db.Producto, producto_id)
             if producto:
+                from datetime import datetime, timedelta, timezone
                 producto.actualizando = False
+                # Marcar como "actualizado hace 11h" → reintentará en ~1h
+                cooldown = datetime.now(timezone.utc) - timedelta(
+                    hours=db.UMBRAL_FRESCURA_HORAS - 1
+                )
+                producto.ultima_actualizacion = cooldown
                 session.commit()
             return
 
